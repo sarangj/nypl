@@ -1,6 +1,8 @@
+import dataclasses
 import typing as t
 
 import requests
+import requests.exceptions
 
 
 class Client:
@@ -13,13 +15,26 @@ class Client:
 
     def get(self, path: str, params: dict[str, t.Any]) -> dict:
         response = self.session.get(self.BASE_URL + path, params=params)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except request.errors.HTTPError:
+            raise APIError()
         response_data = response.json()["nyplAPI"]["response"]
         if response_data["headers"]["status"] != "success":
             # TODO: Make more granular
-            raise Exception()
+            raise APIError()
 
         return response_data
+
+
+@dataclasses.dataclass
+class GenericCapture:
+    """Generic data about a capture"""
+    uid: str
+    type_of_resource: str
+    api_uri: str
+    item_link: str
+    rights_statement_uri: str
 
 
 def get_item_page_for_collection(client: Client, uid: str, page: int = 0) -> dict:
@@ -28,15 +43,44 @@ def get_item_page_for_collection(client: Client, uid: str, page: int = 0) -> dic
     return client.get(f"/items/{uid}", params=params)
 
 
-def get_all_items_in_collection(client: Client, uid: str) -> t.Iterator:
+def get_all_items_in_collection(client: Client, uid: str) -> t.Iterator[GenericCapture]:
     response_data = get_item_page_for_collection(client, uid)
+    captures = response_data.get("capture")
+    # If the first page is missing stuff, this seems to be like a 404
+    if not captures:
+        raise APINotFound()
+
     page = 0
     # I would use `numResults` in the response, but it seems to sometimes not match up
     # to the total number of available results?
-    # Upside, it's my first time using the ol' walrus...
-    while captures := response_data.get("capture"):
+    while captures:
         for capture in captures:
-            yield capture
+            try:
+                yield _parse_capture(capture)
+            except KeyError:
+                raise APIParseError()
 
         page += 1
-        response_data = get_item_page_for_collection(client, uid, page=page)
+        captures = get_item_page_for_collection(client, uid, page=page).get("capture")
+
+
+def _parse_capture(c: dict) -> GenericCapture:
+    return GenericCapture(
+        uid=c["uuid"],
+        type_of_resource=c["typeOfResource"],
+        api_uri=c["apiUri"],
+        item_link=c["itemLink"],
+        rights_statement_uri=["rightsStatementUri"],
+    )
+
+
+class APIError(Exception):
+    pass
+
+
+class APINotFound(APIError):
+    pass
+
+
+class APIParseError(APIError):
+    pass
