@@ -36,6 +36,24 @@ def get_collection_asset_summary(uid: str) -> flask.Response:
     return response
 
 
+@app.errorhandler(api.APIError)
+def not_found(e) -> flask.Response:
+    data = flask.jsonify({"error": {"msg": "Could not talk to NYPL"}})
+    response = app.make_response(data)
+    response.content_type = "application/json"
+    response.status = 500
+    return response
+
+
+@app.errorhandler(api.APINotFound)
+def not_found(e) -> flask.Response:
+    data = flask.jsonify({"error": {"msg": "UID Not Found"}})
+    response = app.make_response(data)
+    response.content_type = "application/json"
+    response.status = 404
+    return response
+
+
 def _default_summary(capture: api.GenericCapture) -> dict:
     return {
         "count": 1,
