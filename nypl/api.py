@@ -30,19 +30,13 @@ def get_item_page_for_collection(client: Client, uid: str, page: int = 0) -> dic
 
 def get_all_items_in_collection(client: Client, uid: str) -> t.Iterator:
     response_data = get_item_page_for_collection(client, uid)
-    total_items = int(response_data["numResults"])
-    items_collected = 0
     page = 0
-    print(total_items)
-    while True:
-        for capture in response_data["capture"]:
-            items_collected += 1
+    # I would use `numResults` in the response, but it seems to sometimes not match up
+    # to the total number of available results?
+    # Upside, it's my first time using the ol' walrus...
+    while captures := response_data.get("capture"):
+        for capture in captures:
             yield capture
 
-        if items_collected >= total_items:
-            break
         page += 1
-
-        print(f"Page {page}")
-        print(f"{items_collected} collected")
         response_data = get_item_page_for_collection(client, uid, page=page)
