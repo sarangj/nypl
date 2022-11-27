@@ -36,9 +36,11 @@ class GenericCapture:
     item_link: str
     rights_statement_uri: str
 
+    private_uri: t.ClassVar[str] = "http://rightsstatements.org/vocab/UND/1.0/"
+
     def is_public(self) -> bool:
         # This is kind of a guess tbh
-        return self.rights_statement_uri.startswith("http://rightsstatements.org/vocab/UND/1.0/")
+        return not self.rights_statement_uri.startswith(self.private_uri)
 
 
 def get_item_page_for_collection(client: Client, uid: str, page: int = 0) -> dict:
