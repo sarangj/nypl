@@ -14,20 +14,32 @@ app.config["API_TOKEN"] = os.environ["API_TOKEN"]
 @app.route('/api/collections/<uid>/asset-summary')
 def get_collection_asset_summary(uid: str) -> flask.Response:
     client = api.Client(token=app.config["API_TOKEN"])
-    summary = {}
+    summary = {"type_summary": {}, "availability_summary": {}}
     for capture in api.get_all_items_in_collection(client, uid):
-        asset_type_summary = summary.get(capture.type_of_resource, {})
+        asset_type_summary = summary["type_summary"].get(capture.type_of_resource, {})
         if asset_type_summary:
             asset_type_summary["count"] += 1
         else:
-            summary[capture.type_of_resource] = {
-                "count": 1,
-                "example_uid": capture.uid,
-                "example_api_uri": capture.api_uri,
-                "example_item_link": capture.item_link,
-            }
+            summary["type_summary"][capture.type_of_resource] = _default_summary(capture)
 
-    data = flask.jsonify({"asset_summary": asset_type_summary})
+        availability_key = "public" if capture.is_public() else "private"
+        availability = summary["availability_summary"].get(availability_key)
+        if availability:
+            availability["count"] += 1
+        else:
+            summary["availability_summary"][availability_key] = _default_summary(capture)
+
+
+    data = flask.jsonify({"asset_summary": summary})
     response = app.make_response(data)
     response.content_type = "application/json"
     return response
+
+
+def _default_summary(capture: api.GenericCapture) -> dict:
+    return {
+        "count": 1,
+        "example_uid": capture.uid,
+        "example_api_uri": capture.api_uri,
+        "example_item_link": capture.item_link,
+    }

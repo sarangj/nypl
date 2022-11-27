@@ -36,6 +36,10 @@ class GenericCapture:
     item_link: str
     rights_statement_uri: str
 
+    def is_public(self) -> bool:
+        # This is kind of a guess tbh
+        return self.rights_statement_uri.startswith("http://rightsstatements.org/vocab/UND/1.0/")
+
 
 def get_item_page_for_collection(client: Client, uid: str, page: int = 0) -> dict:
     # Max out the page size for now
@@ -70,7 +74,7 @@ def _parse_capture(c: dict) -> GenericCapture:
         type_of_resource=c["typeOfResource"],
         api_uri=c["apiUri"],
         item_link=c["itemLink"],
-        rights_statement_uri=["rightsStatementUri"],
+        rights_statement_uri=c["rightsStatementURI"],
     )
 
 
